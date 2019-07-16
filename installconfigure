@@ -1,0 +1,106 @@
+First, install a few packages and unpack the pgpool installation file:
+
+sudo yum install libpq*
+wget http://www.pgpool.net/download.php?f=pgpool-II-4.0.5.tar.gz -O /tmp/pgpool-II-4.0.5.tar.gz
+tar zxf /tmp/pgpool-II-4.0.5.tar.gz
+su - postgres
+tar -xzf pgpool-II-4.0.5.tar.gz
+
+Next, build pgpool, and create the log and PID directories:
+ cd pgpool-II-4.0.5
+ ./configure 
+ make 
+ make install
+ 
+sudo mkdir /var/run/pgpool
+sudo chmod 777 /var/run/pgpool
+sudo chown postgres:postgres /var/run/pgpool
+
+sudo mkdir /var/log/pgpool/
+sudo chmod 777 /var/log/pgpool/
+sudo chown postgres:postgres /var/log/pgpool
+   
+mkdir /var/lib/pgsql/data
+mkdir /var/lib/pgsql/data1
+
+
+su - postgres 
+cp /usr/local/etc/pgpool.conf.sample /usr/local/etc/pgpool.conf
+ 
+vim  /usr/local/etc/pgpool.conf
+ 
+ \\\
+ 
+listen_addresses = '*'
+backend_hostname0 = 'writerIP'
+backend_data_directory0 = '/usr/local/etc/data1'
+backend_flag0 = 'ALWAYS_MASTER'
+
+backend_hostname1 = 'readerIP'
+backend_port1 = 5432
+backend_weight1 = 1
+backend_data_directory1 = '/usr/local/etc/data'
+enable_pool_hba = on
+ssl = on
+ssl_ca_cert = '/home/postgres/rds-combined-ca-bundle.pem'
+ssl_ca_cert_dir = '/home/postgres/'
+log_line_prefix = '%t:%a%p:%d:%u: '   # printf-style string to output at beginning of each log line.
+log_connections = on
+log_statement = on
+log_per_node_statement = on
+log_error_verbosity = terse          # terse, default, or verbose messages
+client_min_messages = error           # values in order of decreasing detail:
+log_min_messages = warning             # values in order of decreasing detail:
+load_balance_mode = on
+master_slave_mode = on
+sr_check_user = 'edsadmin'
+health_check_user = 'edsadmin'
+health_check_password = 'password'
+health_check_database = 'ohl'
+failover_on_backend_error = off
+recovery_user = 'edsadmin'
+ wd_lifecheck_user = 'edsadmin'
+
+
+ \\\\
+
+cp /usr/local/etc/pcp.conf.sample /usr/local/etc/pcp.conf
+
+##Generate md5 checksum pwd of db user pwd
+
+/usr/local/bin/pg_md5 user paswword 
+ 
+vi /usr/local/etc/pcp.conf
+ 
+user:md5paswword
+ 
+cp /usr/local/etc/pool_hba.conf.sample   /usr/local/etc/pool_hba.conf
+vi /usr/local/etc/pool_hba.conf
+
+chkconfig
+  
+  
+
+
+## To start pgpool,
+
+pgpool -n -d > /tmp/pgpool.log 2>&1 &
+
+## To stop pgpool,
+
+pgpool or pgpool -m stop (fast stop)
+
+
+start with Log rotation,
+  
+pgpool -n 2>&1 | /usr/local/apache2/bin/rotatelogs   -l -f /var/log/pgpool/pgpool.log.%A 86400 &
+mkdir /usr/local/apache2/bin/rotatelogs
+mkdir -p /usr/local/apache2/bin/rotatelogs
+
+pgpool -n 2>&1 | /usr/local/apache2/bin/rotatelogs   -l -f /var/log/pgpool/pgpool.log.%A 86400 &
+pgpool -n -d > /tmp/pgpool.log 2>&1 &
+
+
+ 
+  
+psql -h pool-hostname -U username dbname -p 9999
