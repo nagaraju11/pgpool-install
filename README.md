@@ -1,0 +1,2 @@
+# pgpool-install
+Installation steps
